@@ -51,6 +51,41 @@ class TodoApp {
   }
 
   /**
+   * 显示加载状态
+   * @private
+   */
+  _showLoading() {
+    this._elements.loadingBar.classList.add('active');
+  }
+
+  /**
+   * 隐藏加载状态
+   * @private
+   */
+  _hideLoading() {
+    this._elements.loadingBar.classList.remove('active');
+  }
+
+  /**
+   * 显示 Toast 通知
+   * @private
+   * @param {string} message - 通知消息
+   * @param {string} type - 通知类型 (info, success, error)
+   */
+  _showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+
+    this._elements.toastContainer.appendChild(toast);
+
+    setTimeout(() => {
+      toast.style.animation = 'toastSlideOut 0.3s ease';
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
+  }
+
+  /**
    * 格式化时间显示
    * @function formatTime
    * @param {string} isoString - ISO格式的时间字符串
