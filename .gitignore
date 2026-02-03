@@ -1,7 +1,6 @@
 # Test and design directories
 testsprite_tests/
 .superdesign/
-.claude/
 
 # Auto Claude generated files
 .auto-claude/
