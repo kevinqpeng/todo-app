@@ -1,11 +1,8 @@
-import React from 'react';
-import { createRoot } from 'react-dom/client';
-import { VibeKanbanWebCompanion } from 'vibe-kanban-web-companion';
-import './app.js';
+/**
+ * @file main.js
+ * @description 应用入口文件 - 初始化待办事项应用
+ * @author Mx.Peng
+ */
 
-// Initialize Vibe Kanban Web Companion
-const rootElement = document.getElementById('vibe-kanban-root');
-if (rootElement) {
-  const root = createRoot(rootElement);
-  root.render(React.createElement(VibeKanbanWebCompanion));
-}
+// 导入应用主逻辑
+import './app.js';
