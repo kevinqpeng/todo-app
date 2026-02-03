@@ -47,7 +47,24 @@ class TodoApp {
    * @private
    */
   _bindEvents() {
-    // 将在任务 9 中实现
+    // 添加待办事项
+    this._elements.addTodoButton.addEventListener("click", () => this._handleAddTodo());
+    this._elements.todoInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
+        this._handleAddTodo();
+      }
+    });
+
+    // 清除所有待办事项
+    this._elements.clearAllButton.addEventListener("click", () => this._handleClearAll());
+
+    // 清除已完成的待办事项
+    this._elements.clearCompletedButton.addEventListener("click", () => this._handleClearCompleted());
+
+    // 过滤器按钮
+    this._elements.filterButtons.forEach((btn) => {
+      btn.addEventListener("click", () => this._handleFilterChange(btn));
+    });
   }
 
   /**
@@ -118,12 +135,12 @@ class TodoApp {
   }
 
   /**
-   * 格式化时间显示
-   * @function formatTime
+   * 格式化时间显示（静态方法）
+   * @static
    * @param {string} isoString - ISO格式的时间字符串
    * @returns {string} 格式化后的时间字符串
    */
-  formatTime(isoString) {
+  static formatTime(isoString) {
     const date = new Date(isoString);
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -134,12 +151,12 @@ class TodoApp {
   }
 
   /**
-   * 格式化完成时间为易读的字符串。
-   * @function formatCompletedTime
+   * 格式化完成时间为易读的字符串（静态方法）
+   * @static
    * @param {number} timestamp - 时间戳（毫秒）
    * @returns {string} 格式化后的时间字符串
    */
-  formatCompletedTime(timestamp) {
+  static formatCompletedTime(timestamp) {
     const date = new Date(timestamp);
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -148,6 +165,53 @@ class TodoApp {
     const minutes = String(date.getMinutes()).padStart(2, '0');
     const seconds = String(date.getSeconds()).padStart(2, '0');
     return `完成于 ${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+  }
+
+  /**
+   * 处理添加待办事项事件
+   * @private
+   * @returns {Promise<void>}
+   */
+  async _handleAddTodo() {
+    await this.addTodo();
+  }
+
+  /**
+   * 处理清除所有待办事项事件
+   * @private
+   * @returns {Promise<void>}
+   */
+  async _handleClearAll() {
+    await this.clearAllTodos();
+  }
+
+  /**
+   * 处理清除已完成待办事项事件
+   * @private
+   * @returns {Promise<void>}
+   */
+  async _handleClearCompleted() {
+    await this.clearCompletedTodos();
+  }
+
+  /**
+   * 处理过滤器切换事件
+   * @private
+   * @param {HTMLElement} btn - 被点击的过滤器按钮
+   * @returns {void}
+   */
+  _handleFilterChange(btn) {
+    // 移除所有按钮的 active 类
+    this._elements.filterButtons.forEach((b) => b.classList.remove("active"));
+
+    // 为当前按钮添加 active 类
+    btn.classList.add("active");
+
+    // 更新当前过滤器状态
+    this._currentFilter = btn.dataset.filter;
+
+    // 应用过滤器
+    this._applyFilter();
   }
 
   /**
@@ -361,7 +425,7 @@ class TodoApp {
     if (todo.created_at) {
       const createdAtDiv = document.createElement("div");
       createdAtDiv.className = "todo-time";
-      createdAtDiv.textContent = this.formatTime(todo.created_at);
+      createdAtDiv.textContent = TodoApp.formatTime(todo.created_at);
       metaDiv.appendChild(createdAtDiv);
     }
 
@@ -369,7 +433,7 @@ class TodoApp {
     const timeDiv = document.createElement("div");
     timeDiv.className = "completed-time";
     if (todo.completed && li.dataset.completedTime) {
-      timeDiv.textContent = this.formatCompletedTime(parseInt(li.dataset.completedTime));
+      timeDiv.textContent = TodoApp.formatCompletedTime(parseInt(li.dataset.completedTime));
       timeDiv.style.display = "block";
     } else {
       timeDiv.style.display = "none";
@@ -388,7 +452,7 @@ class TodoApp {
         if (!wasCompleted && li.classList.contains("completed")) {
           const now = Date.now();
           li.dataset.completedTime = now;
-          timeDiv.textContent = this.formatCompletedTime(now);
+          timeDiv.textContent = TodoApp.formatCompletedTime(now);
           timeDiv.style.display = "block";
         } else if (wasCompleted && !li.classList.contains("completed")) {
           // 如果从完成变为未完成，清除完成时间
