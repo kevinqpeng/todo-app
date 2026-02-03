@@ -225,8 +225,6 @@ class TodoApp {
       return;
     }
 
-    const createdAt = new Date().toISOString();
-
     try {
       // 先保存到后端
       const newTodo = await this._saveTodo({
@@ -235,10 +233,10 @@ class TodoApp {
       });
 
       // 成功后更新UI
-      this.createTodoElement(todoText, false, null, newTodo.created_at);
+      this._createTodoElement(newTodo);
       this._elements.todoInput.value = "";
-      this.updateTaskCounter();
-      this.applyFilter();
+      this._updateTaskCounter();
+      this._applyFilter();
     } catch (error) {
       console.error('Failed to add todo:', error);
     }
@@ -247,23 +245,28 @@ class TodoApp {
   /**
    * 动态创建待办事项的DOM结构。
    * 包含文本内容、编辑输入框、编辑/删除按钮以及相关事件绑定。
-   * @function createTodoElement
-   * @param {string} text - 待办事项的具体显示文本
-   * @param {boolean} [completed=false] - 初始状态是否为已完成
-   * @param {number|null} [completedTime=null] - 任务完成时间戳
-   * @param {string|null} [createdAt=null] - 任务创建时间（ISO格式）
+   * @function _createTodoElement
+   * @param {Object} todo - 完整的待办事项对象
+   * @param {number} todo.id - 待办事项ID
+   * @param {string} todo.title - 待办事项标题
+   * @param {boolean} todo.completed - 是否已完成
+   * @param {string} todo.created_at - 创建时间（ISO格式）
    * @returns {void}
    */
-  createTodoElement(text, completed = false, completedTime = null, createdAt = null) {
+  _createTodoElement(todo) {
     const li = document.createElement("li");
-    li.dataset.taskText = text;
-    if (createdAt) {
-      li.dataset.createdAt = createdAt;
+
+    // 关键修复：立即设置 todoId
+    li.dataset.todoId = todo.id;
+    li.dataset.taskText = todo.title;
+
+    if (todo.created_at) {
+      li.dataset.createdAt = todo.created_at;
     }
-    if (completed) {
+
+    if (todo.completed) {
       li.classList.add("completed");
-    }
-    if (completedTime) {
+      const completedTime = new Date(todo.created_at).getTime();
       li.dataset.completedTime = completedTime;
     }
 
@@ -274,14 +277,14 @@ class TodoApp {
     // 创建内容区域
     const contentDiv = document.createElement("div");
     contentDiv.className = "todo-content";
-    contentDiv.textContent = text;
+    contentDiv.textContent = todo.title;
     rowDiv.appendChild(contentDiv);
 
     // 创建编辑输入框（隐藏状态）
     const editInput = document.createElement("input");
     editInput.type = "text";
     editInput.className = "edit-input";
-    editInput.value = text;
+    editInput.value = todo.title;
     rowDiv.appendChild(editInput);
 
     // 创建按钮容器
@@ -294,7 +297,7 @@ class TodoApp {
     editButton.className = "edit-btn";
     editButton.addEventListener("click", (e) => {
       e.stopPropagation();
-      this.enterEditMode(li, editInput);
+      this._enterEditMode(li, editInput);
     });
     buttonsDiv.appendChild(editButton);
 
@@ -314,8 +317,8 @@ class TodoApp {
 
         // 从UI中移除
         li.remove();
-        this.updateTaskCounter();
-        this.applyFilter();
+        this._updateTaskCounter();
+        this._applyFilter();
       } catch (error) {
         console.error('Failed to delete todo:', error);
       }
@@ -333,7 +336,7 @@ class TodoApp {
     saveButton.className = "save-btn";
     saveButton.addEventListener("click", async (e) => {
       e.stopPropagation();
-      await this.saveEdit(li, editInput, contentDiv);
+      await this._saveEdit(li, editInput, contentDiv);
     });
     editActionsDiv.appendChild(saveButton);
 
@@ -342,7 +345,7 @@ class TodoApp {
     cancelButton.className = "cancel-btn";
     cancelButton.addEventListener("click", (e) => {
       e.stopPropagation();
-      this.cancelEdit(li, editInput);
+      this._cancelEdit(li, editInput);
     });
     editActionsDiv.appendChild(cancelButton);
 
@@ -355,18 +358,18 @@ class TodoApp {
     metaDiv.className = "todo-meta";
 
     // 创建创建时间显示
-    if (createdAt) {
+    if (todo.created_at) {
       const createdAtDiv = document.createElement("div");
       createdAtDiv.className = "todo-time";
-      createdAtDiv.textContent = this.formatTime(createdAt);
+      createdAtDiv.textContent = this.formatTime(todo.created_at);
       metaDiv.appendChild(createdAtDiv);
     }
 
     // 创建完成时间显示区域
     const timeDiv = document.createElement("div");
     timeDiv.className = "completed-time";
-    if (completed && completedTime) {
-      timeDiv.textContent = this.formatCompletedTime(completedTime);
+    if (todo.completed && li.dataset.completedTime) {
+      timeDiv.textContent = this.formatCompletedTime(parseInt(li.dataset.completedTime));
       timeDiv.style.display = "block";
     } else {
       timeDiv.style.display = "none";
@@ -410,8 +413,8 @@ class TodoApp {
           li.classList.toggle("completed");
         }
 
-        this.updateTaskCounter();
-        this.applyFilter();
+        this._updateTaskCounter();
+        this._applyFilter();
       }
     });
 
@@ -421,12 +424,12 @@ class TodoApp {
   /**
    * 切换指定任务项进入编辑模式。
    * 显示输入框，隐藏静态文本，并自动聚焦到输入框中。
-   * @function enterEditMode
+   * @function _enterEditMode
    * @param {HTMLElement} li - 目标列表项元素
    * @param {HTMLInputElement} editInput - 该项关联的编辑输入框元素
    * @returns {void}
    */
-  enterEditMode(li, editInput) {
+  _enterEditMode(li, editInput) {
     li.classList.add("editing");
     editInput.focus();
     editInput.select();
@@ -435,13 +438,13 @@ class TodoApp {
   /**
    * 保存编辑后的文本并退出编辑模式。
    * 包含空值校验，校验通过后同步更新DOM文本和数据集。
-   * @function saveEdit
+   * @function _saveEdit
    * @param {HTMLElement} li - 目标列表项元素
    * @param {HTMLInputElement} editInput - 编辑输入框元素
    * @param {HTMLElement} contentDiv - 显示任务内容的容器元素
    * @returns {Promise<void>}
    */
-  async saveEdit(li, editInput, contentDiv) {
+  async _saveEdit(li, editInput, contentDiv) {
     const newText = editInput.value.trim();
     if (newText === "") {
       alert("待办事项不能为空");
@@ -463,7 +466,7 @@ class TodoApp {
         contentDiv.textContent = newText;
         editInput.value = newText;
         li.classList.remove("editing");
-        this.updateTaskCounter();
+        this._updateTaskCounter();
       }
     } catch (error) {
       console.error('Failed to update todo:', error);
@@ -473,12 +476,12 @@ class TodoApp {
   /**
    * 放弃编辑并恢复之前的任务文本。
    * 退出编辑模式并还原输入框的值。
-   * @function cancelEdit
+   * @function _cancelEdit
    * @param {HTMLElement} li - 目标列表项元素
    * @param {HTMLInputElement} editInput - 编辑输入框元素
    * @returns {void}
    */
-  cancelEdit(li, editInput) {
+  _cancelEdit(li, editInput) {
     editInput.value = li.dataset.taskText;
     li.classList.remove("editing");
   }
@@ -486,10 +489,10 @@ class TodoApp {
   /**
    * 重新统计并更新界面上的任务状态计数器。
    * 计算总数、进行中数量和已完成数量，并格式化显示文本。
-   * @function updateTaskCounter
+   * @function _updateTaskCounter
    * @returns {void}
    */
-  updateTaskCounter() {
+  _updateTaskCounter() {
     const allTasks = this._elements.todoList.querySelectorAll("li");
     const activeTasks = Array.from(allTasks).filter(
       (task) => !task.classList.contains("completed")
@@ -502,10 +505,10 @@ class TodoApp {
   /**
    * 根据当前选中的过滤器（全部、进行中、已完成）显示或隐藏任务项。
    * 通过操作 CSS 类名 'hidden' 来控制元素的可见性。
-   * @function applyFilter
+   * @function _applyFilter
    * @returns {void}
    */
-  applyFilter() {
+  _applyFilter() {
     const allTasks = this._elements.todoList.querySelectorAll("li");
 
     allTasks.forEach((task) => {
@@ -545,7 +548,7 @@ class TodoApp {
         await Promise.all(deletePromises);
         // 成功后清空UI
         this._elements.todoList.innerHTML = "";
-        this.updateTaskCounter();
+        this._updateTaskCounter();
       } catch (error) {
         console.error('Failed to clear all todos:', error);
         alert('清空待办事项失败');
@@ -580,8 +583,8 @@ class TodoApp {
         await Promise.all(deletePromises);
         // 成功后从UI中移除
         completedTasks.forEach(task => task.remove());
-        this.updateTaskCounter();
-        this.applyFilter();
+        this._updateTaskCounter();
+        this._applyFilter();
       } catch (error) {
         console.error('Failed to clear completed todos:', error);
         alert('清空已完成待办事项失败');
