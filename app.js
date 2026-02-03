@@ -2,7 +2,7 @@
  * @Author: Mx.Peng
  * @Date: 2025-08-26 13:58:10
  * @LastEditors: Mx.Peng
- * @LastEditTime: 2026-01-27 14:53:00
+ * @LastEditTime: 2026-02-03 00:00:00
  * @Description: Enhanced TodoList with filter, edit, and counter functionality, now connected to backend API
  */
 
@@ -10,21 +10,45 @@
  * @file app.js
  * @description Enhanced to-do list application with filtering, editing, task counter,
  * and improved user experience with animations. Now connects to backend API.
+ * Refactored to use TodoApp class with encapsulation.
  */
 
-// API base URL - change this to match your backend server
-const API_BASE_URL = 'http://localhost:5000/api';
+class TodoApp {
+  constructor() {
+    this._elements = {};
+    this._currentFilter = 'all';
+    this._apiBaseUrl = 'http://localhost:5000/api';
 
-document.addEventListener("DOMContentLoaded", () => {
-  const todoInput = document.getElementById("todo-input");
-  const addTodoButton = document.getElementById("add-todo");
-  const clearAllButton = document.getElementById("clear-all");
-  const clearCompletedButton = document.getElementById("clear-completed");
-  const todoList = document.getElementById("todo-list");
-  const taskCountEl = document.getElementById("task-count");
-  const filterButtons = document.querySelectorAll(".filter-btn");
+    this._initElements();
+    this._bindEvents();
+    this.loadTodos();
+  }
 
-  let currentFilter = "all";
+  /**
+   * 初始化并缓存所有 DOM 元素引用
+   * @private
+   */
+  _initElements() {
+    this._elements = {
+      todoInput: document.getElementById("todo-input"),
+      addTodoButton: document.getElementById("add-todo"),
+      clearAllButton: document.getElementById("clear-all"),
+      clearCompletedButton: document.getElementById("clear-completed"),
+      todoList: document.getElementById("todo-list"),
+      taskCountEl: document.getElementById("task-count"),
+      filterButtons: document.querySelectorAll(".filter-btn"),
+      loadingBar: document.getElementById("loading-bar"),
+      toastContainer: document.getElementById("toast-container")
+    };
+  }
+
+  /**
+   * 绑定所有事件监听器
+   * @private
+   */
+  _bindEvents() {
+    // 将在任务 9 中实现
+  }
 
   /**
    * 格式化时间显示
@@ -32,7 +56,7 @@ document.addEventListener("DOMContentLoaded", () => {
    * @param {string} isoString - ISO格式的时间字符串
    * @returns {string} 格式化后的时间字符串
    */
-  function formatTime(isoString) {
+  formatTime(isoString) {
     const date = new Date(isoString);
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -48,7 +72,7 @@ document.addEventListener("DOMContentLoaded", () => {
    * @param {number} timestamp - 时间戳（毫秒）
    * @returns {string} 格式化后的时间字符串
    */
-  function formatCompletedTime(timestamp) {
+  formatCompletedTime(timestamp) {
     const date = new Date(timestamp);
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -64,29 +88,29 @@ document.addEventListener("DOMContentLoaded", () => {
    * @function loadTodos
    * @returns {Promise<void>}
    */
-  async function loadTodos() {
+  async loadTodos() {
     try {
-      const response = await fetch(`${API_BASE_URL}/todos`);
+      const response = await fetch(`${this._apiBaseUrl}/todos`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const todos = await response.json();
 
       // 清空当前列表
-      todoList.innerHTML = "";
+      this._elements.todoList.innerHTML = "";
 
       // 重建任务列表
       todos.forEach((taskObject) => {
-        createTodoElement(
-          taskObject.title, 
-          taskObject.completed, 
-          taskObject.completed ? new Date(taskObject.created_at).getTime() : null, 
+        this.createTodoElement(
+          taskObject.title,
+          taskObject.completed,
+          taskObject.completed ? new Date(taskObject.created_at).getTime() : null,
           taskObject.created_at
         );
       });
 
-      updateTaskCounter();
-      applyFilter();
+      this.updateTaskCounter();
+      this.applyFilter();
     } catch (error) {
       console.error('Error loading todos:', error);
       alert('加载待办事项失败，请检查后端服务是否正常运行');
@@ -99,9 +123,9 @@ document.addEventListener("DOMContentLoaded", () => {
    * @param {Object} todoData - 待办事项数据
    * @returns {Promise<Object>} 保存后的待办事项对象
    */
-  async function saveTodo(todoData) {
+  async saveTodo(todoData) {
     try {
-      const response = await fetch(`${API_BASE_URL}/todos`, {
+      const response = await fetch(`${this._apiBaseUrl}/todos`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -128,9 +152,9 @@ document.addEventListener("DOMContentLoaded", () => {
    * @param {Object} todoData - 待办事项数据
    * @returns {Promise<Object>} 更新后的待办事项对象
    */
-  async function updateTodo(id, todoData) {
+  async updateTodo(id, todoData) {
     try {
-      const response = await fetch(`${API_BASE_URL}/todos/${id}`, {
+      const response = await fetch(`${this._apiBaseUrl}/todos/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -156,9 +180,9 @@ document.addEventListener("DOMContentLoaded", () => {
    * @param {number} id - 待办事项ID
    * @returns {Promise<Object>} 删除操作的结果
    */
-  async function deleteTodo(id) {
+  async deleteTodo(id) {
     try {
-      const response = await fetch(`${API_BASE_URL}/todos/${id}`, {
+      const response = await fetch(`${this._apiBaseUrl}/todos/${id}`, {
         method: 'DELETE'
       });
 
@@ -180,27 +204,27 @@ document.addEventListener("DOMContentLoaded", () => {
    * @function addTodo
    * @returns {void}
    */
-  async function addTodo() {
-    const todoText = todoInput.value.trim();
+  async addTodo() {
+    const todoText = this._elements.todoInput.value.trim();
     if (todoText === "") {
       alert("请输入待办事项");
       return;
     }
 
     const createdAt = new Date().toISOString();
-    
+
     try {
       // 先保存到后端
-      const newTodo = await saveTodo({
+      const newTodo = await this.saveTodo({
         title: todoText,
         description: ''
       });
-      
+
       // 成功后更新UI
-      createTodoElement(todoText, false, null, newTodo.created_at);
-      todoInput.value = "";
-      updateTaskCounter();
-      applyFilter();
+      this.createTodoElement(todoText, false, null, newTodo.created_at);
+      this._elements.todoInput.value = "";
+      this.updateTaskCounter();
+      this.applyFilter();
     } catch (error) {
       console.error('Failed to add todo:', error);
     }
@@ -216,7 +240,7 @@ document.addEventListener("DOMContentLoaded", () => {
    * @param {string|null} [createdAt=null] - 任务创建时间（ISO格式）
    * @returns {void}
    */
-  function createTodoElement(text, completed = false, completedTime = null, createdAt = null) {
+  createTodoElement(text, completed = false, completedTime = null, createdAt = null) {
     const li = document.createElement("li");
     li.dataset.taskText = text;
     if (createdAt) {
@@ -256,7 +280,7 @@ document.addEventListener("DOMContentLoaded", () => {
     editButton.className = "edit-btn";
     editButton.addEventListener("click", (e) => {
       e.stopPropagation();
-      enterEditMode(li, editInput);
+      this.enterEditMode(li, editInput);
     });
     buttonsDiv.appendChild(editButton);
 
@@ -265,19 +289,19 @@ document.addEventListener("DOMContentLoaded", () => {
     deleteButton.textContent = "删除";
     deleteButton.addEventListener("click", async (e) => {
       e.stopPropagation();
-      
+
       // 从后端删除
       try {
         // 获取待删除项的ID（这里需要一种方法来标识后端的ID）
         const todoId = li.dataset.todoId;
         if (todoId) {
-          await deleteTodo(parseInt(todoId));
+          await this.deleteTodo(parseInt(todoId));
         }
-        
+
         // 从UI中移除
         li.remove();
-        updateTaskCounter();
-        applyFilter();
+        this.updateTaskCounter();
+        this.applyFilter();
       } catch (error) {
         console.error('Failed to delete todo:', error);
       }
@@ -295,7 +319,7 @@ document.addEventListener("DOMContentLoaded", () => {
     saveButton.className = "save-btn";
     saveButton.addEventListener("click", async (e) => {
       e.stopPropagation();
-      await saveEdit(li, editInput, contentDiv);
+      await this.saveEdit(li, editInput, contentDiv);
     });
     editActionsDiv.appendChild(saveButton);
 
@@ -304,7 +328,7 @@ document.addEventListener("DOMContentLoaded", () => {
     cancelButton.className = "cancel-btn";
     cancelButton.addEventListener("click", (e) => {
       e.stopPropagation();
-      cancelEdit(li, editInput);
+      this.cancelEdit(li, editInput);
     });
     editActionsDiv.appendChild(cancelButton);
 
@@ -320,7 +344,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (createdAt) {
       const createdAtDiv = document.createElement("div");
       createdAtDiv.className = "todo-time";
-      createdAtDiv.textContent = formatTime(createdAt);
+      createdAtDiv.textContent = this.formatTime(createdAt);
       metaDiv.appendChild(createdAtDiv);
     }
 
@@ -328,7 +352,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const timeDiv = document.createElement("div");
     timeDiv.className = "completed-time";
     if (completed && completedTime) {
-      timeDiv.textContent = formatCompletedTime(completedTime);
+      timeDiv.textContent = this.formatCompletedTime(completedTime);
       timeDiv.style.display = "block";
     } else {
       timeDiv.style.display = "none";
@@ -347,7 +371,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!wasCompleted && li.classList.contains("completed")) {
           const now = Date.now();
           li.dataset.completedTime = now;
-          timeDiv.textContent = formatCompletedTime(now);
+          timeDiv.textContent = this.formatCompletedTime(now);
           timeDiv.style.display = "block";
         } else if (wasCompleted && !li.classList.contains("completed")) {
           // 如果从完成变为未完成，清除完成时间
@@ -360,7 +384,7 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
           const todoId = li.dataset.todoId;
           if (todoId) {
-            await updateTodo(parseInt(todoId), {
+            await this.updateTodo(parseInt(todoId), {
               title: li.dataset.taskText,
               description: '',
               completed: li.classList.contains("completed")
@@ -372,12 +396,12 @@ document.addEventListener("DOMContentLoaded", () => {
           li.classList.toggle("completed");
         }
 
-        updateTaskCounter();
-        applyFilter();
+        this.updateTaskCounter();
+        this.applyFilter();
       }
     });
 
-    todoList.appendChild(li);
+    this._elements.todoList.appendChild(li);
   }
 
   /**
@@ -388,7 +412,7 @@ document.addEventListener("DOMContentLoaded", () => {
    * @param {HTMLInputElement} editInput - 该项关联的编辑输入框元素
    * @returns {void}
    */
-  function enterEditMode(li, editInput) {
+  enterEditMode(li, editInput) {
     li.classList.add("editing");
     editInput.focus();
     editInput.select();
@@ -403,7 +427,7 @@ document.addEventListener("DOMContentLoaded", () => {
    * @param {HTMLElement} contentDiv - 显示任务内容的容器元素
    * @returns {Promise<void>}
    */
-  async function saveEdit(li, editInput, contentDiv) {
+  async saveEdit(li, editInput, contentDiv) {
     const newText = editInput.value.trim();
     if (newText === "") {
       alert("待办事项不能为空");
@@ -414,7 +438,7 @@ document.addEventListener("DOMContentLoaded", () => {
       // 更新后端数据
       const todoId = li.dataset.todoId;
       if (todoId) {
-        const updatedTodo = await updateTodo(parseInt(todoId), {
+        const updatedTodo = await this.updateTodo(parseInt(todoId), {
           title: newText,
           description: '',
           completed: li.classList.contains("completed")
@@ -425,7 +449,7 @@ document.addEventListener("DOMContentLoaded", () => {
         contentDiv.textContent = newText;
         editInput.value = newText;
         li.classList.remove("editing");
-        updateTaskCounter();
+        this.updateTaskCounter();
       }
     } catch (error) {
       console.error('Failed to update todo:', error);
@@ -440,7 +464,7 @@ document.addEventListener("DOMContentLoaded", () => {
    * @param {HTMLInputElement} editInput - 编辑输入框元素
    * @returns {void}
    */
-  function cancelEdit(li, editInput) {
+  cancelEdit(li, editInput) {
     editInput.value = li.dataset.taskText;
     li.classList.remove("editing");
   }
@@ -451,14 +475,14 @@ document.addEventListener("DOMContentLoaded", () => {
    * @function updateTaskCounter
    * @returns {void}
    */
-  function updateTaskCounter() {
-    const allTasks = todoList.querySelectorAll("li");
+  updateTaskCounter() {
+    const allTasks = this._elements.todoList.querySelectorAll("li");
     const activeTasks = Array.from(allTasks).filter(
       (task) => !task.classList.contains("completed")
     );
     const completedTasks = allTasks.length - activeTasks.length;
 
-    taskCountEl.textContent = `共 ${allTasks.length} 个任务 (进行中: ${activeTasks.length}, 已完成: ${completedTasks})`;
+    this._elements.taskCountEl.textContent = `共 ${allTasks.length} 个任务 (进行中: ${activeTasks.length}, 已完成: ${completedTasks})`;
   }
 
   /**
@@ -467,15 +491,15 @@ document.addEventListener("DOMContentLoaded", () => {
    * @function applyFilter
    * @returns {void}
    */
-  function applyFilter() {
-    const allTasks = todoList.querySelectorAll("li");
+  applyFilter() {
+    const allTasks = this._elements.todoList.querySelectorAll("li");
 
     allTasks.forEach((task) => {
       task.classList.remove("hidden");
 
-      if (currentFilter === "active" && task.classList.contains("completed")) {
+      if (this._currentFilter === "active" && task.classList.contains("completed")) {
         task.classList.add("hidden");
-      } else if (currentFilter === "completed" && !task.classList.contains("completed")) {
+      } else if (this._currentFilter === "completed" && !task.classList.contains("completed")) {
         task.classList.add("hidden");
       }
     });
@@ -487,27 +511,27 @@ document.addEventListener("DOMContentLoaded", () => {
    * @function clearAllTodos
    * @returns {void}
    */
-  async function clearAllTodos() {
-    if (todoList.children.length === 0) {
+  async clearAllTodos() {
+    if (this._elements.todoList.children.length === 0) {
       alert("当前没有任务需要清除");
       return;
     }
 
     if (confirm("确定要清除所有待办事项吗？")) {
       // 从后端清空所有任务
-      const allTaskElements = Array.from(todoList.querySelectorAll("li"));
+      const allTaskElements = Array.from(this._elements.todoList.querySelectorAll("li"));
       const deletePromises = allTaskElements.map(async (taskElement) => {
         const todoId = taskElement.dataset.todoId;
         if (todoId) {
-          return deleteTodo(parseInt(todoId));
+          return this.deleteTodo(parseInt(todoId));
         }
       });
 
       try {
         await Promise.all(deletePromises);
         // 成功后清空UI
-        todoList.innerHTML = "";
-        updateTaskCounter();
+        this._elements.todoList.innerHTML = "";
+        this.updateTaskCounter();
       } catch (error) {
         console.error('Failed to clear all todos:', error);
         alert('清空待办事项失败');
@@ -521,8 +545,8 @@ document.addEventListener("DOMContentLoaded", () => {
    * @function clearCompletedTodos
    * @returns {void}
    */
-  async function clearCompletedTodos() {
-    const completedTasks = todoList.querySelectorAll("li.completed");
+  async clearCompletedTodos() {
+    const completedTasks = this._elements.todoList.querySelectorAll("li.completed");
 
     if (completedTasks.length === 0) {
       alert("当前没有已完成的任务");
@@ -534,7 +558,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const deletePromises = Array.from(completedTasks).map(async (taskElement) => {
         const todoId = taskElement.dataset.todoId;
         if (todoId) {
-          return deleteTodo(parseInt(todoId));
+          return this.deleteTodo(parseInt(todoId));
         }
       });
 
@@ -542,41 +566,17 @@ document.addEventListener("DOMContentLoaded", () => {
         await Promise.all(deletePromises);
         // 成功后从UI中移除
         completedTasks.forEach(task => task.remove());
-        updateTaskCounter();
-        applyFilter();
+        this.updateTaskCounter();
+        this.applyFilter();
       } catch (error) {
         console.error('Failed to clear completed todos:', error);
         alert('清空已完成待办事项失败');
       }
     }
   }
+}
 
-  // 事件监听器
-  addTodoButton.addEventListener("click", addTodo);
-
-  todoInput.addEventListener("keypress", (e) => {
-    if (e.key === "Enter") {
-      addTodo();
-    }
-  });
-
-  clearAllButton.addEventListener("click", clearAllTodos);
-  clearCompletedButton.addEventListener("click", clearCompletedTodos);
-
-  // 过滤按钮事件
-  filterButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      // 移除所有active类
-      filterButtons.forEach((btn) => btn.classList.remove("active"));
-      // 添加active类到当前按钮
-      button.classList.add("active");
-      // 设置当前过滤器
-      currentFilter = button.dataset.filter;
-      // 应用过滤
-      applyFilter();
-    });
-  });
-
-  // 页面加载时初始化
-  loadTodos();
+// 初始化应用
+document.addEventListener("DOMContentLoaded", () => {
+  new TodoApp();
 });
