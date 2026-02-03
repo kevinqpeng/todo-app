@@ -385,6 +385,7 @@ class TodoApp {
         this._applyFilter();
       } catch (error) {
         console.error('Failed to delete todo:', error);
+        this._showToast('删除待办事项失败', 'error');
       }
     });
     buttonsDiv.appendChild(deleteButton);
@@ -473,6 +474,7 @@ class TodoApp {
           }
         } catch (error) {
           console.error('Failed to update todo completion status:', error);
+          this._showToast('更新待办事项状态失败', 'error');
           // 如果更新失败，回滚UI状态
           li.classList.toggle("completed");
         }
