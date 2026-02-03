@@ -157,30 +157,19 @@ class TodoApp {
    */
   async loadTodos() {
     try {
-      const response = await fetch(`${this._apiBaseUrl}/todos`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const todos = await response.json();
+      const todos = await this._apiRequest('/todos');
 
-      // 清空当前列表
       this._elements.todoList.innerHTML = "";
 
-      // 重建任务列表
-      todos.forEach((taskObject) => {
-        this.createTodoElement(
-          taskObject.title,
-          taskObject.completed,
-          taskObject.completed ? new Date(taskObject.created_at).getTime() : null,
-          taskObject.created_at
-        );
+      todos.forEach((todo) => {
+        // 关键：传递完整对象，包含 id
+        this._createTodoElement(todo);
       });
 
-      this.updateTaskCounter();
-      this.applyFilter();
+      this._updateTaskCounter();
+      this._applyFilter();
     } catch (error) {
       console.error('Error loading todos:', error);
-      alert('加载待办事项失败，请检查后端服务是否正常运行');
     }
   }
 
