@@ -86,6 +86,38 @@ class TodoApp {
   }
 
   /**
+   * 统一的 API 请求方法
+   * @private
+   * @param {string} endpoint - API 端点
+   * @param {Object} options - fetch 选项
+   * @returns {Promise<Object>} API 响应数据
+   */
+  async _apiRequest(endpoint, options = {}) {
+    this._showLoading();
+    try {
+      const response = await fetch(`${this._apiBaseUrl}${endpoint}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers
+        },
+        ...options
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('API request failed:', error);
+      this._showToast(`操作失败: ${error.message}`, 'error');
+      throw error;
+    } finally {
+      this._hideLoading();
+    }
+  }
+
+  /**
    * 格式化时间显示
    * @function formatTime
    * @param {string} isoString - ISO格式的时间字符串
@@ -154,83 +186,41 @@ class TodoApp {
 
   /**
    * 保存待办事项到后端API
-   * @function saveTodo
-   * @param {Object} todoData - 待办事项数据
+   * @private
+   * @param {Object} data - 待办事项数据
    * @returns {Promise<Object>} 保存后的待办事项对象
    */
-  async saveTodo(todoData) {
-    try {
-      const response = await fetch(`${this._apiBaseUrl}/todos`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(todoData)
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('Error saving todo:', error);
-      alert('保存待办事项失败');
-      throw error;
-    }
+  async _saveTodo(data) {
+    return await this._apiRequest('/todos', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
   }
 
   /**
    * 更新待办事项到后端API
-   * @function updateTodo
+   * @private
    * @param {number} id - 待办事项ID
-   * @param {Object} todoData - 待办事项数据
+   * @param {Object} data - 待办事项数据
    * @returns {Promise<Object>} 更新后的待办事项对象
    */
-  async updateTodo(id, todoData) {
-    try {
-      const response = await fetch(`${this._apiBaseUrl}/todos/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(todoData)
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('Error updating todo:', error);
-      alert('更新待办事项失败');
-      throw error;
-    }
+  async _updateTodo(id, data) {
+    return await this._apiRequest(`/todos/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
   }
 
   /**
    * 从后端API删除待办事项
-   * @function deleteTodo
+   * @private
    * @param {number} id - 待办事项ID
    * @returns {Promise<Object>} 删除操作的结果
    */
-  async deleteTodo(id) {
-    try {
-      const response = await fetch(`${this._apiBaseUrl}/todos/${id}`, {
-        method: 'DELETE'
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('Error deleting todo:', error);
-      alert('删除待办事项失败');
-      throw error;
-    }
+  async _deleteTodo(id) {
+    return await this._apiRequest(`/todos/${id}`, {
+      method: 'DELETE'
+    });
   }
 
   /**
@@ -250,7 +240,7 @@ class TodoApp {
 
     try {
       // 先保存到后端
-      const newTodo = await this.saveTodo({
+      const newTodo = await this._saveTodo({
         title: todoText,
         description: ''
       });
@@ -330,7 +320,7 @@ class TodoApp {
         // 获取待删除项的ID（这里需要一种方法来标识后端的ID）
         const todoId = li.dataset.todoId;
         if (todoId) {
-          await this.deleteTodo(parseInt(todoId));
+          await this._deleteTodo(parseInt(todoId));
         }
 
         // 从UI中移除
@@ -419,7 +409,7 @@ class TodoApp {
         try {
           const todoId = li.dataset.todoId;
           if (todoId) {
-            await this.updateTodo(parseInt(todoId), {
+            await this._updateTodo(parseInt(todoId), {
               title: li.dataset.taskText,
               description: '',
               completed: li.classList.contains("completed")
@@ -473,7 +463,7 @@ class TodoApp {
       // 更新后端数据
       const todoId = li.dataset.todoId;
       if (todoId) {
-        const updatedTodo = await this.updateTodo(parseInt(todoId), {
+        const updatedTodo = await this._updateTodo(parseInt(todoId), {
           title: newText,
           description: '',
           completed: li.classList.contains("completed")
@@ -558,7 +548,7 @@ class TodoApp {
       const deletePromises = allTaskElements.map(async (taskElement) => {
         const todoId = taskElement.dataset.todoId;
         if (todoId) {
-          return this.deleteTodo(parseInt(todoId));
+          return this._deleteTodo(parseInt(todoId));
         }
       });
 
@@ -593,7 +583,7 @@ class TodoApp {
       const deletePromises = Array.from(completedTasks).map(async (taskElement) => {
         const todoId = taskElement.dataset.todoId;
         if (todoId) {
-          return this.deleteTodo(parseInt(todoId));
+          return this._deleteTodo(parseInt(todoId));
         }
       });
 
