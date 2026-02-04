@@ -17,7 +17,7 @@ class TodoApp {
   constructor() {
     this._elements = {};
     this._currentFilter = 'all';
-    this._apiBaseUrl = 'http://localhost:5000/api';
+    this._apiBaseUrl = 'http://localhost:5001/api';
 
     this._initElements();
     this._bindEvents();
